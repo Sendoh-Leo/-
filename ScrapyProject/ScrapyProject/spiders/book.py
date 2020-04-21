@@ -2,6 +2,8 @@
 import scrapy
 from scrapy import Request
 
+from ScrapyProject.items import BookItem
+
 """
 spyder爬虫流程：
     1.确定起始的url---->start_url
@@ -28,7 +30,7 @@ class BookSpider(scrapy.Spider):
     def parse(self, response):
         #使用scrapy交互式环境scrapy shell url
         #通过yield返回解析数据的字典格式
-
+        item = BookItem()
         #1.获取所有章节的li标签
         chapters = response.xpath('//div[@class="book-mulu"]/ul/li')
         #2.遍历每一个li标签，提取每一个章节的名称和网址
@@ -40,9 +42,17 @@ class BookSpider(scrapy.Spider):
 
             #将书籍名称作为元数据传入item，
             book_name = detail_url.split('/')[-2]
-            #继续爬取详情页（detail_url）的内容,callback：返回给爬取详情页的解析函数
+
+
+            item['name']= name
+            item['book_name'] = book_name
+           #继续爬取详情页（detail_url）的内容,callback：返回给爬取详情页的解析函数
             #meta 作用：把当前的name属性传递给下一个解析器
-            yield Request(self.base_url+detail_url,callback=self.parse_chapter_detail,meta={'name':name,'book_name':book_name})
+            #yield Request(self.base_url+detail_url,callback=self.parse_chapter_detail,meta={'name':name,'book_name':book_name})
+
+            #使用item
+            yield Request(self.base_url + detail_url, callback=self.parse_chapter_detail,
+                          meta={'item':item})
             # yield {
             #     'detail_url':detail_url,
             #     'name':name
@@ -52,10 +62,14 @@ class BookSpider(scrapy.Spider):
         #1.xpath('string(.)获取该标签以及子孙标签的所有文本信息
         #2.如何将对象转换为字符串   extract_first/get()  将一个对象转换为字符串
         #                         extract/get_all()  转换列表中每一个对象为字符串
+        item = response.meta['item']
+
         content = response.xpath('//div[@class="chapter_content"]')[0].xpath('string(.)').get()
-        #print('content:',content)
-        yield  {
-            'book_name':response.meta['book_name'],
-            'name':response.meta['name'],
-            'content':content
-        }
+
+        item['content']=content
+        yield  item
+        # yield  {
+        #     'book_name':response.meta['book_name'],
+        #     'name':response.meta['name'],
+        #     'content':content
+        # }
